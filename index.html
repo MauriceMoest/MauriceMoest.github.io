@@ -3,48 +3,124 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zufälliges Katzenbild</title>
+    <title>2048 Game</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            padding: 50px;
-            background-color: #f4f4f4;
-        }
-        img {
-            max-width: 100%;
-            height: auto;
-            border-radius: 12px;
-            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
-        }
-        button {
-            padding: 10px 20px;
-            font-size: 1.2em;
-            margin-top: 20px;
-            cursor: pointer;
-        }
+        body { font-family: Arial, sans-serif; text-align: center; }
+        .grid-container { display: grid; grid-template-columns: repeat(4, 100px); gap: 10px; width: 440px; margin: 20px auto; }
+        .tile { width: 100px; height: 100px; background: #cdc1b4; font-size: 24px; font-weight: bold; display: flex; align-items: center; justify-content: center; border-radius: 5px; }
     </style>
 </head>
 <body>
-    <h1>Hier ist dein zufälliges Katzenbild 😺</h1>
-    <img id="catImage" src="" alt="Süße Katze">
-    <br>
-    <button onclick="fetchCatImage()">Neue Katze laden</button>
-
+    <h1>2048</h1>
+    <div class="grid-container" id="grid"></div>
+    <h2 id="gameOver" style="display: none; color: red;">Game Over!</h2>
     <script>
-        async function fetchCatImage() {
-            try {
-                const response = await fetch('https://api.thecatapi.com/v1/images/search');
-                const data = await response.json();
-                const catImage = document.getElementById('catImage');
-                catImage.src = data[0].url;
-            } catch (error) {
-                console.error('Fehler beim Laden des Katzenbildes:', error);
+        const gridSize = 4;
+        let grid = Array(gridSize * gridSize).fill(0);
+        
+        function initGame() {
+            addRandomTile();
+            addRandomTile();
+            drawGrid();
+        }
+        
+        function addRandomTile() {
+            let emptyTiles = grid.map((val, index) => val === 0 ? index : null).filter(val => val !== null);
+            if (emptyTiles.length > 0) {
+                let randomIndex = emptyTiles[Math.floor(Math.random() * emptyTiles.length)];
+                grid[randomIndex] = Math.random() > 0.1 ? 2 : 4;
             }
         }
-
-        // Lade direkt ein erstes Bild beim Seitenstart
-        fetchCatImage();
+        
+        function drawGrid() {
+            const gridContainer = document.getElementById("grid");
+            gridContainer.innerHTML = "";
+            grid.forEach(val => {
+                let tile = document.createElement("div");
+                tile.className = "tile";
+                tile.textContent = val !== 0 ? val : "";
+                tile.style.background = val ? getColor(val) : "#cdc1b4";
+                gridContainer.appendChild(tile);
+            });
+            checkGameOver();
+        }
+        
+        function getColor(value) {
+            const colors = {
+                2: "#eee4da", 4: "#ede0c8", 8: "#f2b179", 16: "#f59563",
+                32: "#f67c5f", 64: "#f65e3b", 128: "#edcf72", 256: "#edcc61",
+                512: "#edc850", 1024: "#edc53f", 2048: "#edc22e"
+            };
+            return colors[value] || "#3c3a32";
+        }
+        
+        window.addEventListener("keydown", function(e) {
+            if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+                move(e.key);
+            }
+        });
+        
+        function move(direction) {
+            let moved = false;
+            let newGrid = [...grid];
+            
+            for (let i = 0; i < gridSize; i++) {
+                let row = [];
+                for (let j = 0; j < gridSize; j++) {
+                    let index = direction === "ArrowLeft" || direction === "ArrowRight" ? i * gridSize + j : j * gridSize + i;
+                    if (grid[index] !== 0) row.push(grid[index]);
+                }
+                if (direction === "ArrowRight" || direction === "ArrowDown") row.reverse();
+                
+                for (let k = 0; k < row.length - 1; k++) {
+                    if (row[k] === row[k + 1]) {
+                        row[k] *= 2;
+                        row.splice(k + 1, 1);
+                        row.push(0);
+                    }
+                }
+                
+                if (direction === "ArrowRight" || direction === "ArrowDown") row.reverse();
+                
+                while (row.length < gridSize) {
+                    if (direction === "ArrowLeft" || direction === "ArrowUp") {
+                        row.push(0);
+                    } else {
+                        row.unshift(0);
+                    }
+                }
+                
+                for (let j = 0; j < gridSize; j++) {
+                    let index = direction === "ArrowLeft" || direction === "ArrowRight" ? i * gridSize + j : j * gridSize + i;
+                    if (newGrid[index] !== row[j]) moved = true;
+                    newGrid[index] = row[j];
+                }
+            }
+            
+            if (moved) {
+                grid = newGrid;
+                addRandomTile();
+                drawGrid();
+            }
+        }
+        
+        function checkGameOver() {
+            if (!grid.includes(0)) {
+                for (let i = 0; i < gridSize; i++) {
+                    for (let j = 0; j < gridSize; j++) {
+                        let index = i * gridSize + j;
+                        if ((j < gridSize - 1 && grid[index] === grid[index + 1]) ||
+                            (i < gridSize - 1 && grid[index] === grid[index + gridSize])) {
+                            return;
+                        }
+                    }
+                }
+                document.getElementById("gameOver").style.display = "block";
+                window.removeEventListener("keydown", function(e) {});
+            }
+        }
+        
+        initGame();
     </script>
 </body>
 </html>
